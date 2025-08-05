@@ -1,0 +1,4 @@
+kafka:
+  bootstrap_servers: 'localhost:9092'
+database:
+  url: 'mysql+mysqlconnector://root:1111@localhost:3306/dwh'
