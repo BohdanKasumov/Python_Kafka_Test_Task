@@ -1,4 +1,4 @@
 kafka:
   bootstrap_servers: 'localhost:9092'
 database:
-  url: 'mysql+mysqlconnector://root:1111@localhost:3306/dwh'
+  url: 'postgresql+psycopg2://postgres:1111@localhost:5432/dwh'

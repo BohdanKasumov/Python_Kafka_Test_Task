@@ -9,19 +9,20 @@ SQL_PATH = os.path.join(BASE_DIR, 'sql', 'create_tables.sql')
 with open(CONFIG_PATH, 'r') as file:
     config = yaml.safe_load(file)
 
-engine = create_engine(config['database']['url'].replace('/dwh', ''))
+base_url = config['database']['url'].replace('/dwh', '')
+engine = create_engine(base_url)
 
 def check_database_exists(engine):
     with engine.connect() as conn:
         result = conn.execute(text(
-            "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name = 'dwh'"
+            "SELECT COUNT(*) FROM pg_database WHERE datname = 'dwh'"
         )).scalar()
         return result > 0
 
 def check_table_exists(engine, table_name):
     with engine.connect() as conn:
         result = conn.execute(text(
-            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'dwh' AND table_name = :table_name"
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = :table_name"
         ), {"table_name": table_name}).scalar()
         return result > 0
 
@@ -40,21 +41,28 @@ def execute_sql_script():
 
     updated_engine = create_engine(config['database']['url'])
     with updated_engine.connect() as conn:
-        conn.execute(text("USE dwh"))
-
+        conn.commit()
     all_tables_exist = all(check_table_exists(updated_engine, table) for table in required_tables)
 
     if not all_tables_exist:
-        with open(SQL_PATH, 'r') as file:
+        with open(SQL_PATH, 'r', encoding='utf-8') as file:
             sql_script = file.read()
-        with engine.connect() as conn:
+        with updated_engine.connect() as conn:
             for statement in sql_script.split(';'):
                 if statement.strip():
-                    conn.execute(text(statement))
+                    try:
+                        print(f"Executing: {statement[:50]}...")
+                        conn.execute(text(statement))
+                    except Exception as e:
+                        print(f"Error executing SQL statement: {statement[:50]}... | Error: {e}")
+                        raise
             conn.commit()
         print("Table is created")
     else:
         print("Table have created already")
 
 if __name__ == "__main__":
-    execute_sql_script()
+    try:
+        execute_sql_script()
+    except Exception as e:
+        print(f"Failed to execute script: {e}")
